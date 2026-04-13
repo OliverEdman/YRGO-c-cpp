@@ -1,0 +1,5 @@
+source/output/
+*.o
+*.elf
+*.hex
+.vscode/
