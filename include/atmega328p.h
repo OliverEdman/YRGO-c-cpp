@@ -4,7 +4,6 @@
 #pragma once
 
 #include <stdint.h>
-
 #include "driver/timer/interface.h"
 
 namespace driver 
@@ -13,115 +12,73 @@ namespace timer
 {
 /**
  * @brief Timer driver for ATmega328P.
- * 
- *        This class is non-copyable and non-movable.
- *
- * @note Tree hardware timers Timer 0 - Timer 2 are available.
+ * * 
+ * @note Three hardware timers (Timer 0 - Timer 2) are available.
  */
 class Atmega328p final : public Interface
 {
 public:
     /**
      * @brief Constructor.
-     *
-     * @param[in] timeout_ms The timeout in milliseconds. Must be greater than 0.
-     * @param[in] callback Callback to invoke on timeout (default = none).
+     * @param[in] timeout_ms The timeout in milliseconds. Must be > 0.
+     * @param[in] callback Callback to invoke on timeout. Must not be nullptr.
      * @param[in] startTimer Start the timer immediately (default = false).
      */
-    explicit Atmega328p(uint32_t timeout_ms, void (*callback)() = nullptr, 
+    explicit Atmega328p(uint32_t timeout_ms, timer_callback_t callback, 
                         bool startTimer = false) noexcept;
 
-    /**
-     * @brief Destructor.
-     */
     ~Atmega328p() noexcept override;
 
-    /**
-     * @brief Check if the timer is initialized.
-     * 
-     *        An uninitialized timer indicates that no timer circuit was available when the 
-     *        timer was created, or that the given timeout was invalid.
-     * 
-     * @return True if the timer is initialized, false otherwise.
-     */
-    bool isInitialized() const noexcept override;
+    // --- Interface Overrides ---
 
-    /**
-     * @brief Check whether the timer is running.
-     *
-     * @return True if the timer is running, false otherwise.
-     */
-    bool isRunning() const noexcept override;
+    /** @brief Motsvarar valideringen i timer_new. */
+    bool isInitialized() const noexcept; 
 
-    /**
-     * @brief Check whether the timer has timed out.
-     *
-     * @return True if the timer has timed out, false otherwise.
-     */
-    bool hasTimedOut() const noexcept override;
+    bool isEnabled() const noexcept override;
+    
+    uint32_t getTimeoutMs() const noexcept override;
+    
+    void setTimeoutMs(uint32_t timeout_ms) noexcept override;
 
-    /**
-     * @brief Get the timeout of the timer.
-     * 
-     * @return The timeout in milliseconds.
-     */
-    uint32_t timeout_ms() const noexcept override;
-
-    /**
-     * @brief Set timeout of the timer.
-     * 
-     * @param[in] timeout_ms The new timeout in milliseconds. Must be greater than 0.
-     */
-    void setTimeout_ms(uint32_t timeout_ms) noexcept override;
-
-    /**
-     * @brief Start the timer.
-     */
     void start() noexcept override;
 
-    /**
-     * @brief Stop the timer.
-     */
     void stop() noexcept override;
 
-    /**
-     * @brief Toggle the timer.
-     */
     void toggle() noexcept override;
 
-    /**
-     * @brief Restart the timer.
-     */
+    /** @brief Stoppar timern och nollställer räknaren. */
+    void reset() noexcept override;
+
+    /** @brief Nollställer räknaren och startar om timern. */
     void restart() noexcept override;
 
-    /** 
-     * @brief Callback handler. 
-     */
+    // --- Specifika för denna implementation ---
+
+    /** @brief Kontrollerar om timern har gått ut. */
+    bool hasTimedOut() const noexcept;
+
+    /** @brief Anropas från ISR för att köra callbacken. */
     void handleCallback() noexcept;
 
-    Atmega328p()                             = delete; // No default constructor.
-    Atmega328p(const Atmega328p&)            = delete; // No copy constructor.
-    Atmega328p(Atmega328p&&)                 = delete; // No move constructor.
-    Atmega328p& operator=(const Atmega328p&) = delete; // No copy assignment.
-    Atmega328p& operator=(Atmega328p&&)      = delete; // No move assignment.
+    
+    Atmega328p()                               = delete;
+    Atmega328p(const Atmega328p&)            = delete;
+    Atmega328p(Atmega328p&&)                 = delete;
+    Atmega328p& operator=(const Atmega328p&) = delete;
+    Atmega328p& operator=(Atmega328p&&)      = delete;
 
 private:
-    void addCallback(void (*callback)()) const noexcept;
-    void removeCallback() const noexcept;
-    bool increment() noexcept;
-    void clearTimedOut() noexcept;
+    struct Hardware; // Opaque pekar-struktur till registren
+    Hardware* _hw;
+    
+    uint32_t _timeout_ms;
+    uint32_t _current_count;
+    timer_callback_t _callback;
+    bool _is_enabled;
+    bool _initialized;
 
-    /** Timer hardware structure. */
-    struct Hardware;
-
-    /** Hardware structure associated with the timer. */
-    Hardware* myHw;
-
-    /** Max value to count up to. */
-    uint32_t myMaxCount;
-
-    /** Indicate whether the timer is running. */
-    bool myRunning;
+    
+    void setupHardware() noexcept;
 };
 } // namespace timer
 } // namespace driver
